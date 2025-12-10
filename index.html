@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Herramienta de Resaltado de Clases de Palabras</title>
+    <script src="https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Open Sans', sans-serif;
+            max-width: 1000px;
+            margin: 30px auto;
+            padding: 20px;
+            background-color: #f8fafc;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #1e40af;
+            padding-bottom: 10px;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .input-area {
+            margin-bottom: 30px;
+        }
+        textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 15px;
+            font-size: 16px;
+            border: 2px solid #cbd5e1;
+            border-radius: 8px;
+            font-family: 'Open Sans', sans-serif;
+            resize: vertical;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #1e40af;
+        }
+        button {
+            background-color: #1e40af;
+            color: white;
+            padding: 12px 30px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #1d4ed8;
+        }
+        button:disabled {
+            background-color: #94a3b8;
+            cursor: not-allowed;
+        }
+        .result {
+            border: 2px solid #ddd;
+            padding: 30px;
+            border-radius: 8px;
+            background-color: #fafafa;
+            line-height: 2.2;
+            font-size: 20px;
+            min-height: 100px;
+        }
+        .loading {
+            color: #64748b;
+            font-style: italic;
+        }
+        .noun { color: #1e40af; font-weight: 500; }
+        .nominalizer { color: #3b82f6; font-weight: 500; }
+        .verb { color: #7c3aed; font-weight: 500; }
+        .adjective { color: #047857; font-weight: 500; }
+        .adjectival-noun { color: #be185d; font-weight: 500; }
+        .adverb { color: #6b21a8; font-weight: 500; }
+        .postposition { color: #6b7280; }
+        .declarative { color: #b45309; font-weight: 500; }
+        .perfective { color: #0e7490; font-weight: 500; }
+        .negative { color: #b91c1c; font-weight: 500; }
+        .predicate-functional { color: #c2410c; font-weight: 500; }
+        .conjunction { color: #0369a1; font-weight: 500; }
+        .indicative { color: #9ca3af; }
+        .symbol { color: #374151; }
+        .legend {
+            margin: 20px 0;
+            padding: 20px;
+            background-color: #f0f9ff;
+            border-radius: 8px;
+        }
+        .legend-item {
+            display: inline-block;
+            margin: 5px 15px 5px 0;
+            font-size: 14px;
+        }
+        .legend-item span:first-child {
+            font-size: 36px;
+            vertical-align: middle;
+            margin-right: 5px;
+            line-height: 1;
+        }
+        .term-label {
+            font-size: 12px;
+            color: #64748b;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Herramienta de Resaltado de Clases de Palabras por Color</h1>
+    
+    <div class="container">
+        <div class="legend">
+            <strong>Leyenda:</strong>
+            <div class="legend-item">
+                <span class="noun">■</span> <span class="noun">名詞</span> <span class="term-label">(meishi / Nominal)</span>
+            </div>
+            <div class="legend-item">
+                <span class="nominalizer">■</span> <span class="nominalizer">名詞化詞</span> <span class="term-label">(meishikashi / Nominalizador)</span>
+            </div>
+            <div class="legend-item">
+                <span class="verb">■</span> <span class="verb">動詞</span> <span class="term-label">(dōshi / Verbo)</span>
+            </div>
+            <div class="legend-item">
+                <span class="adjective">■</span> <span class="adjective">形容詞</span> <span class="term-label">(keiyōshi / Adjetivo)</span>
+            </div>
+            <div class="legend-item">
+                <span class="adjectival-noun">■</span> <span class="adjectival-noun">形容名詞</span> <span class="term-label">(keiyōmeishi / Nominal adjetival)</span>
+            </div>
+            <div class="legend-item">
+                <span class="adverb">■</span> <span class="adverb">副詞</span> <span class="term-label">(fukushi / Adverbio)</span>
+            </div>
+            <div class="legend-item">
+                <span class="postposition">■</span> <span class="postposition">後置詞</span> <span class="term-label">(kōchishi / Posposición)</span>
+            </div>
+            <div class="legend-item">
+                <span class="declarative">■</span> <span class="declarative">宣言詞</span> <span class="term-label">(sengenshi / Declarativo)</span>
+            </div>
+            <div class="legend-item">
+                <span class="perfective">■</span> <span class="perfective">完了詞</span> <span class="term-label">(kanryōshi / Perfectivo)</span>
+            </div>
+            <div class="legend-item">
+                <span class="negative">■</span> <span class="negative">否定詞</span> <span class="term-label">(hiteishi / Negativo)</span>
+            </div>
+            <div class="legend-item">
+                <span class="conjunction">■</span> <span class="conjunction">接続詞</span> <span class="term-label">(setsuzokushi / Conjunción)</span>
+            </div>
+            <div class="legend-item">
+                <span class="indicative">■</span> <span class="indicative">指示詞</span> <span class="term-label">(shijishi / Indicativo)</span>
+            </div>
+        </div>
+
+        <div class="input-area">
+            <textarea id="inputText" placeholder="Escriba aquí una oración en japonés"></textarea>
+            <button id="analyzeBtn" onclick="analyzeText()">Analizar</button>
+        </div>
+
+        <div class="result" id="result">
+            <span class="loading">Presione el botón "Analizar" para ver el texto con colores según las clases de palabras.</span>
+        </div>
+    </div>
+
+    <script>
+        let tokenizer = null;
+
+        // Inicializar el analizador morfológico
+        window.addEventListener('load', function() {
+            console.log('Página cargada, iniciando kuromoji...');
+            console.log('kuromoji disponible:', typeof kuromoji !== 'undefined');
+            
+            if (typeof kuromoji === 'undefined') {
+                document.getElementById('result').innerHTML = '<span style="color: red;">Error: La biblioteca kuromoji no se cargó correctamente. Por favor, recargue la página.</span>';
+                return;
+            }
+            
+            kuromoji.builder({ dicPath: "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict" }).build(function (err, _tokenizer) {
+                if (err) {
+                    console.error('Error al cargar kuromoji:', err);
+                    document.getElementById('result').innerHTML = '<span style="color: red;">Error: No se pudo cargar el analizador morfológico.</span>';
+                    return;
+                }
+                console.log('Kuromoji cargado correctamente');
+                tokenizer = _tokenizer;
+                document.getElementById('analyzeBtn').disabled = false;
+                document.getElementById('result').innerHTML = '<span class="loading">Presione el botón "Analizar" para ver el texto con colores según las clases de palabras.</span>';
+            });
+        });
+
+        function classifyToken(token) {
+            const surface = token.surface_form;
+            const pos = token.pos;
+            const pos_detail_1 = token.pos_detail_1;
+            const pos_detail_2 = token.pos_detail_2;
+            const basic_form = token.basic_form;
+
+            // 記号 (símbolos)
+            if (pos === '記号') return 'symbol';
+
+            // 名詞化詞「の」「ん」(nominalizador)
+            if (pos === '名詞' && pos_detail_1 === '非自立' && (surface === 'の' || surface === 'ん')) {
+                return 'nominalizer';
+            }
+
+            // 名詞 (nominal)
+            if (pos === '名詞') return 'noun';
+
+            // 動詞 (verbo)
+            if (pos === '動詞') return 'verb';
+
+            // 形容詞 (adjetivo)
+            if (pos === '形容詞') return 'adjective';
+
+            // 形容名詞 (nominal adjetival)
+            if (pos === '形容動詞') return 'adjectival-noun';
+
+            // 副詞 (adverbio)
+            if (pos === '副詞') return 'adverb';
+
+            // 連体詞 → 指示詞 (indicativo)
+            if (pos === '連体詞') return 'indicative';
+
+            // 接続詞 (conjunción)
+            if (pos === '接続詞') return 'conjunction';
+
+            // 助動詞の分類
+            if (pos === '助動詞') {
+                // 宣言詞「だ」「です」(declarativo)
+                if (basic_form === 'だ' || basic_form === 'です') {
+                    return 'declarative';
+                }
+                // 完了詞「た」(perfectivo)
+                if (basic_form === 'た') {
+                    return 'perfective';
+                }
+                // 否定詞「ない」(negativo)
+                if (basic_form === 'ない') {
+                    return 'negative';
+                }
+                // その他の助動詞 (expresiones funcionales del predicado)
+                return 'predicate-functional';
+            }
+
+            // 助詞（後置詞 / posposición）
+            if (pos === '助詞') {
+                // 接続助詞「て」「で」は完了詞扱い (perfectivo)
+                if (pos_detail_1 === '接続助詞' && (surface === 'て' || surface === 'で')) {
+                    return 'perfective';
+                }
+                return 'postposition';
+            }
+
+            return 'symbol';
+        }
+
+        function analyzeText() {
+            const text = document.getElementById('inputText').value.trim();
+            const resultDiv = document.getElementById('result');
+
+            if (!text) {
+                resultDiv.innerHTML = '<span class="loading">Por favor, ingrese algún texto.</span>';
+                return;
+            }
+
+            if (!tokenizer) {
+                resultDiv.innerHTML = '<span class="loading">Cargando el analizador morfológico...</span>';
+                return;
+            }
+
+            const tokens = tokenizer.tokenize(text);
+            let html = '';
+
+            tokens.forEach(token => {
+                const className = classifyToken(token);
+                const surface = token.surface_form
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+                html += `<span class="${className}">${surface}</span>`;
+            });
+
+            resultDiv.innerHTML = html;
+        }
+
+        // Estado inicial: botón deshabilitado
+        document.getElementById('analyzeBtn').disabled = true;
+
+        // Tecla Enter para analizar
+        document.getElementById('inputText').addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'Enter') {
+                analyzeText();
+            }
+        });
+    </script>
+</body>
+</html>
