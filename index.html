@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Herramienta de Resaltado de Clases de Palabras</title>
-    <script src="https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         body {
@@ -26,6 +25,24 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             margin-bottom: 20px;
         }
+        .status {
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .status.loading {
+            background-color: #fef3c7;
+            border-left: 4px solid #f59e0b;
+        }
+        .status.ready {
+            background-color: #d1fae5;
+            border-left: 4px solid #10b981;
+        }
+        .status.error {
+            background-color: #fee2e2;
+            border-left: 4px solid #ef4444;
+        }
         .input-area {
             margin-bottom: 30px;
         }
@@ -43,6 +60,10 @@
             outline: none;
             border-color: #1e40af;
         }
+        textarea:disabled {
+            background-color: #f1f5f9;
+            cursor: not-allowed;
+        }
         button {
             background-color: #1e40af;
             color: white;
@@ -54,7 +75,7 @@
             font-weight: 500;
             margin-top: 10px;
         }
-        button:hover {
+        button:hover:not(:disabled) {
             background-color: #1d4ed8;
         }
         button:disabled {
@@ -69,10 +90,6 @@
             line-height: 2.2;
             font-size: 20px;
             min-height: 100px;
-        }
-        .loading {
-            color: #64748b;
-            font-style: italic;
         }
         .noun { color: #1e40af; font-weight: 500; }
         .nominalizer { color: #3b82f6; font-weight: 500; }
@@ -116,6 +133,8 @@
     <h1>Herramienta de Resaltado de Clases de Palabras por Color</h1>
     
     <div class="container">
+        <div id="status" class="status loading">Cargando biblioteca de análisis morfológico...</div>
+        
         <div class="legend">
             <strong>Leyenda:</strong>
             <div class="legend-item">
@@ -157,46 +176,68 @@
         </div>
 
         <div class="input-area">
-            <textarea id="inputText" placeholder="Escriba aquí una oración en japonés"></textarea>
-            <button id="analyzeBtn" onclick="analyzeText()">Analizar</button>
+            <textarea id="inputText" placeholder="Escriba aquí una oración en japonés" disabled></textarea>
+            <button id="analyzeBtn" onclick="analyzeText()" disabled>Analizar</button>
         </div>
 
         <div class="result" id="result">
-            <span class="loading">Presione el botón "Analizar" para ver el texto con colores según las clases de palabras.</span>
+            Esperando la carga de la biblioteca...
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.min.js"></script>
     <script>
         let tokenizer = null;
+        const statusDiv = document.getElementById('status');
+        const inputText = document.getElementById('inputText');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const resultDiv = document.getElementById('result');
 
-        // Inicializar el analizador morfológico
+        // Inicializar después de que todo se cargue
         window.addEventListener('load', function() {
-            console.log('Página cargada, iniciando kuromoji...');
-            console.log('kuromoji disponible:', typeof kuromoji !== 'undefined');
+            console.log('Página cargada');
             
+            // Verificar si kuromoji está disponible
             if (typeof kuromoji === 'undefined') {
-                document.getElementById('result').innerHTML = '<span style="color: red;">Error: La biblioteca kuromoji no se cargó correctamente. Por favor, recargue la página.</span>';
+                showError('La biblioteca kuromoji no se cargó. Por favor, recargue la página.');
                 return;
             }
             
-            kuromoji.builder({ dicPath: "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict" }).build(function (err, _tokenizer) {
+            console.log('Kuromoji detectado, iniciando carga...');
+            statusDiv.textContent = 'Cargando diccionario japonés...';
+            
+            // Cargar kuromoji
+            kuromoji.builder({ 
+                dicPath: "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict"
+            }).build(function (err, _tokenizer) {
                 if (err) {
                     console.error('Error al cargar kuromoji:', err);
-                    document.getElementById('result').innerHTML = '<span style="color: red;">Error: No se pudo cargar el analizador morfológico.</span>';
+                    showError('Error al cargar el diccionario. Por favor, recargue la página.');
                     return;
                 }
-                console.log('Kuromoji cargado correctamente');
+                
+                console.log('Kuromoji cargado exitosamente');
                 tokenizer = _tokenizer;
-                document.getElementById('analyzeBtn').disabled = false;
-                document.getElementById('result').innerHTML = '<span class="loading">Presione el botón "Analizar" para ver el texto con colores según las clases de palabras.</span>';
+                
+                // Habilitar interfaz
+                statusDiv.className = 'status ready';
+                statusDiv.textContent = '✓ Sistema listo para analizar';
+                inputText.disabled = false;
+                analyzeBtn.disabled = false;
+                resultDiv.innerHTML = '<span style="color: #64748b; font-style: italic;">Presione el botón "Analizar" para ver el texto con colores según las clases de palabras.</span>';
             });
         });
+
+        function showError(message) {
+            statusDiv.className = 'status error';
+            statusDiv.textContent = '✗ ' + message;
+            resultDiv.innerHTML = '<span style="color: #ef4444;">' + message + '</span>';
+        }
 
         function classifyToken(token) {
             const surface = token.surface_form;
             const pos = token.pos;
             const pos_detail_1 = token.pos_detail_1;
-            const pos_detail_2 = token.pos_detail_2;
             const basic_form = token.basic_form;
 
             // 記号 (símbolos)
@@ -259,39 +300,40 @@
         }
 
         function analyzeText() {
-            const text = document.getElementById('inputText').value.trim();
-            const resultDiv = document.getElementById('result');
+            const text = inputText.value.trim();
 
             if (!text) {
-                resultDiv.innerHTML = '<span class="loading">Por favor, ingrese algún texto.</span>';
+                resultDiv.innerHTML = '<span style="color: #64748b; font-style: italic;">Por favor, ingrese algún texto.</span>';
                 return;
             }
 
             if (!tokenizer) {
-                resultDiv.innerHTML = '<span class="loading">Cargando el analizador morfológico...</span>';
+                resultDiv.innerHTML = '<span style="color: #ef4444;">El analizador aún no está listo. Por favor, espere.</span>';
                 return;
             }
 
-            const tokens = tokenizer.tokenize(text);
-            let html = '';
+            try {
+                const tokens = tokenizer.tokenize(text);
+                let html = '';
 
-            tokens.forEach(token => {
-                const className = classifyToken(token);
-                const surface = token.surface_form
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;');
-                html += `<span class="${className}">${surface}</span>`;
-            });
+                tokens.forEach(token => {
+                    const className = classifyToken(token);
+                    const surface = token.surface_form
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;');
+                    html += `<span class="${className}">${surface}</span>`;
+                });
 
-            resultDiv.innerHTML = html;
+                resultDiv.innerHTML = html;
+            } catch (error) {
+                console.error('Error al analizar:', error);
+                resultDiv.innerHTML = '<span style="color: #ef4444;">Error al analizar el texto. Por favor, intente de nuevo.</span>';
+            }
         }
 
-        // Estado inicial: botón deshabilitado
-        document.getElementById('analyzeBtn').disabled = true;
-
         // Tecla Enter para analizar
-        document.getElementById('inputText').addEventListener('keydown', function(e) {
+        inputText.addEventListener('keydown', function(e) {
             if (e.ctrlKey && e.key === 'Enter') {
                 analyzeText();
             }
