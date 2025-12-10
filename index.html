@@ -31,13 +31,13 @@
             border-radius: 5px;
             font-size: 14px;
         }
-        .status.loading {
-            background-color: #fef3c7;
-            border-left: 4px solid #f59e0b;
-        }
         .status.ready {
             background-color: #d1fae5;
             border-left: 4px solid #10b981;
+        }
+        .status.loading {
+            background-color: #fef3c7;
+            border-left: 4px solid #f59e0b;
         }
         .status.error {
             background-color: #fee2e2;
@@ -59,10 +59,6 @@
         textarea:focus {
             outline: none;
             border-color: #1e40af;
-        }
-        textarea:disabled {
-            background-color: #f1f5f9;
-            cursor: not-allowed;
         }
         button {
             background-color: #1e40af;
@@ -133,7 +129,7 @@
     <h1>Herramienta de Resaltado de Clases de Palabras por Color</h1>
     
     <div class="container">
-        <div id="status" class="status loading">Cargando biblioteca de análisis morfológico...</div>
+        <div id="status" class="status ready">✓ Sistema listo para analizar</div>
         
         <div class="legend">
             <strong>Leyenda:</strong>
@@ -176,149 +172,92 @@
         </div>
 
         <div class="input-area">
-            <textarea id="inputText" placeholder="Escriba aquí una oración en japonés" disabled></textarea>
-            <button id="analyzeBtn" onclick="analyzeText()" disabled>Analizar</button>
+            <textarea id="inputText" placeholder="Escriba aquí una oración en japonés"></textarea>
+            <button id="analyzeBtn" onclick="analyzeText()">Analizar</button>
         </div>
 
         <div class="result" id="result">
-            Esperando la carga de la biblioteca...
+            <span style="color: #64748b; font-style: italic;">Presione el botón "Analizar" para ver el texto con colores según las clases de palabras.</span>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.min.js"></script>
     <script>
-        let tokenizer = null;
-        const statusDiv = document.getElementById('status');
-        const inputText = document.getElementById('inputText');
-        const analyzeBtn = document.getElementById('analyzeBtn');
-        const resultDiv = document.getElementById('result');
-
-        // Inicializar después de que todo se cargue
-        window.addEventListener('load', function() {
-            console.log('Página cargada');
-            
-            // Verificar si kuromoji está disponible
-            if (typeof kuromoji === 'undefined') {
-                showError('La biblioteca kuromoji no se cargó. Por favor, recargue la página.');
-                return;
-            }
-            
-            console.log('Kuromoji detectado, iniciando carga...');
-            statusDiv.textContent = 'Cargando diccionario japonés...';
-            
-            // Cargar kuromoji
-            kuromoji.builder({ 
-                dicPath: "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict"
-            }).build(function (err, _tokenizer) {
-                if (err) {
-                    console.error('Error al cargar kuromoji:', err);
-                    showError('Error al cargar el diccionario. Por favor, recargue la página.');
-                    return;
-                }
-                
-                console.log('Kuromoji cargado exitosamente');
-                tokenizer = _tokenizer;
-                
-                // Habilitar interfaz
-                statusDiv.className = 'status ready';
-                statusDiv.textContent = '✓ Sistema listo para analizar';
-                inputText.disabled = false;
-                analyzeBtn.disabled = false;
-                resultDiv.innerHTML = '<span style="color: #64748b; font-style: italic;">Presione el botón "Analizar" para ver el texto con colores según las clases de palabras.</span>';
-            });
-        });
-
-        function showError(message) {
-            statusDiv.className = 'status error';
-            statusDiv.textContent = '✗ ' + message;
-            resultDiv.innerHTML = '<span style="color: #ef4444;">' + message + '</span>';
-        }
-
+        const API_URL = 'https://japones-api.vercel.app/api/analizar';
+        
         function classifyToken(token) {
-            const surface = token.surface_form;
+            const surface = token.surface;
             const pos = token.pos;
             const pos_detail_1 = token.pos_detail_1;
             const basic_form = token.basic_form;
 
-            // 記号 (símbolos)
             if (pos === '記号') return 'symbol';
-
-            // 名詞化詞「の」「ん」(nominalizador)
             if (pos === '名詞' && pos_detail_1 === '非自立' && (surface === 'の' || surface === 'ん')) {
                 return 'nominalizer';
             }
-
-            // 名詞 (nominal)
             if (pos === '名詞') return 'noun';
-
-            // 動詞 (verbo)
             if (pos === '動詞') return 'verb';
-
-            // 形容詞 (adjetivo)
             if (pos === '形容詞') return 'adjective';
-
-            // 形容名詞 (nominal adjetival)
             if (pos === '形容動詞') return 'adjectival-noun';
-
-            // 副詞 (adverbio)
             if (pos === '副詞') return 'adverb';
-
-            // 連体詞 → 指示詞 (indicativo)
             if (pos === '連体詞') return 'indicative';
-
-            // 接続詞 (conjunción)
             if (pos === '接続詞') return 'conjunction';
-
-            // 助動詞の分類
+            
             if (pos === '助動詞') {
-                // 宣言詞「だ」「です」(declarativo)
-                if (basic_form === 'だ' || basic_form === 'です') {
-                    return 'declarative';
-                }
-                // 完了詞「た」(perfectivo)
-                if (basic_form === 'た') {
-                    return 'perfective';
-                }
-                // 否定詞「ない」(negativo)
-                if (basic_form === 'ない') {
-                    return 'negative';
-                }
-                // その他の助動詞 (expresiones funcionales del predicado)
+                if (basic_form === 'だ' || basic_form === 'です') return 'declarative';
+                if (basic_form === 'た') return 'perfective';
+                if (basic_form === 'ない') return 'negative';
                 return 'predicate-functional';
             }
-
-            // 助詞（後置詞 / posposición）
+            
             if (pos === '助詞') {
-                // 接続助詞「て」「で」は完了詞扱い (perfectivo)
                 if (pos_detail_1 === '接続助詞' && (surface === 'て' || surface === 'で')) {
                     return 'perfective';
                 }
                 return 'postposition';
             }
-
+            
             return 'symbol';
         }
 
-        function analyzeText() {
-            const text = inputText.value.trim();
+        async function analyzeText() {
+            const text = document.getElementById('inputText').value.trim();
+            const statusDiv = document.getElementById('status');
+            const resultDiv = document.getElementById('result');
+            const analyzeBtn = document.getElementById('analyzeBtn');
 
             if (!text) {
                 resultDiv.innerHTML = '<span style="color: #64748b; font-style: italic;">Por favor, ingrese algún texto.</span>';
                 return;
             }
 
-            if (!tokenizer) {
-                resultDiv.innerHTML = '<span style="color: #ef4444;">El analizador aún no está listo. Por favor, espere.</span>';
-                return;
-            }
+            analyzeBtn.disabled = true;
+            statusDiv.className = 'status loading';
+            statusDiv.textContent = 'Analizando...';
+            resultDiv.innerHTML = '<span style="color: #64748b; font-style: italic;">Procesando...</span>';
 
             try {
-                const tokens = tokenizer.tokenize(text);
-                let html = '';
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ text: text })
+                });
 
-                tokens.forEach(token => {
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                let html = '';
+                data.tokens.forEach(token => {
                     const className = classifyToken(token);
-                    const surface = token.surface_form
+                    const surface = token.surface
                         .replace(/&/g, '&amp;')
                         .replace(/</g, '&lt;')
                         .replace(/>/g, '&gt;');
@@ -326,14 +265,20 @@
                 });
 
                 resultDiv.innerHTML = html;
+                statusDiv.className = 'status ready';
+                statusDiv.textContent = '✓ Análisis completado';
+
             } catch (error) {
-                console.error('Error al analizar:', error);
-                resultDiv.innerHTML = '<span style="color: #ef4444;">Error al analizar el texto. Por favor, intente de nuevo.</span>';
+                console.error('Error:', error);
+                statusDiv.className = 'status error';
+                statusDiv.textContent = '✗ Error al analizar';
+                resultDiv.innerHTML = `<span style="color: #ef4444;">Error: ${error.message}</span>`;
+            } finally {
+                analyzeBtn.disabled = false;
             }
         }
 
-        // Tecla Enter para analizar
-        inputText.addEventListener('keydown', function(e) {
+        document.getElementById('inputText').addEventListener('keydown', function(e) {
             if (e.ctrlKey && e.key === 'Enter') {
                 analyzeText();
             }
